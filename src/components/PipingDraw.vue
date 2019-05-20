@@ -1,18 +1,36 @@
 <template>
   <div>
-    Server URL: <input type="text" v-model="serverUrl"><br>
-    Your ID: <input type="text" v-model="connectId"><br>
-    Peer ID: <input type="text" v-model="peerConnectId"><br>
-    <button v-on:click="connect()">Connect</button><br>
+    <v-layout>
+      <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
+        <v-card style="padding: 1em; margin: 1em;">
+          <v-text-field label="Server URL"
+                        v-model="serverUrl" />
+          <v-text-field label="Your ID"
+                        v-model="connectId" />
+          <v-text-field label="Peer ID"
+                        v-model="peerConnectId"
+                        placeholder="e.g. bma" />
+          <v-btn v-on:click="connect()"
+                 color="primary"
+                 block>Connect
+          </v-btn>
+        </v-card>
+      </v-flex>
+    </v-layout>
 
-    <button v-on:click="drawingMode = 'pen'"
-            v-bind:disabled="drawingMode === 'pen'">
-      ️Pen
-    </button>
-    <button v-on:click="drawingMode = 'eraser'"
-            v-bind:disabled="drawingMode === 'eraser'">
-      Eraser
-    </button><br>
+    <v-layout>
+      <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
+        <v-btn v-on:click="drawingMode = 'pen'"
+                v-bind:disabled="drawingMode === 'pen'">
+          ️Pen
+        </v-btn>
+        <v-btn v-on:click="drawingMode = 'eraser'"
+                v-bind:disabled="drawingMode === 'eraser'">
+          Eraser
+        </v-btn>
+      </v-flex>
+    </v-layout>
+
     <canvas ref="canvas" width='700' height='500'>
       Canvas is not supported on this browser.
     </canvas>
