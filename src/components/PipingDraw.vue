@@ -21,12 +21,11 @@
     <v-layout>
       <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
         <v-btn v-on:click="drawingMode = 'pen'"
-                v-bind:disabled="drawingMode === 'pen'">
-          ️Pen
-        </v-btn>
+               v-bind:disabled="drawingMode === 'pen'">
+          <v-icon>fas fa-paint-brush</v-icon></v-btn>
         <v-btn v-on:click="drawingMode = 'eraser'"
-                v-bind:disabled="drawingMode === 'eraser'">
-          Eraser
+               v-bind:disabled="drawingMode === 'eraser'">
+          <v-icon>fas fa-eraser</v-icon>
         </v-btn>
       </v-flex>
     </v-layout>
