@@ -21,11 +21,14 @@
     <v-layout>
       <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
         <v-btn v-on:click="drawingMode = 'pen'"
-               v-bind:disabled="drawingMode === 'pen'">
-          <v-icon>fas fa-paint-brush</v-icon></v-btn>
+               icon
+               v-bind:color="drawingMode === 'pen' ? '#ccc' : ''">
+          <v-icon color="#555">fas fa-paint-brush</v-icon>
+        </v-btn>
         <v-btn v-on:click="drawingMode = 'eraser'"
-               v-bind:disabled="drawingMode === 'eraser'">
-          <v-icon>fas fa-eraser</v-icon>
+               icon
+               v-bind:color="drawingMode === 'eraser' ? '#ccc' : ''">
+          <v-icon color="#555">fas fa-eraser</v-icon>
         </v-btn>
 
         <!-- Color selections -->
@@ -208,7 +211,7 @@ export default class PipingDraw extends Vue {
     '#9966ff',
     '#00cc66',
     '#f4f414',
-    '#464646'
+    '#464646',
   ];
 
   private penColor: string = this.colors[0];
