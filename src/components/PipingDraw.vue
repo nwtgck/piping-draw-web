@@ -14,7 +14,7 @@
 /* tslint:disable:no-console */
 /* tslint:disable:interface-over-type-literal */
 import { Component, Prop, Vue } from 'vue-property-decorator';
-import {PromiseLimiter} from 'promise-limiter';
+import {PromiseSequentialContext} from '@/promise-sequential-context';
 
 type StrokeDrawAction = {
   kind: 'stroke',
@@ -90,6 +90,9 @@ export default class PipingDraw extends Vue {
     context.lineJoin = 'round';
     context.lineWidth = radius;
 
+    const sendSeqCtx = new PromiseSequentialContext();
+    const sendDrawActions: DrawAction[] = [];
+
     let seqNum: number = 1;
     let startX: number;
     let startY: number;
@@ -126,13 +129,27 @@ export default class PipingDraw extends Vue {
       // Handle the draw action
       drawActionHandler(context, drawAction);
 
-      // Send the draw action to the peer
-      const url = `${this.serverUrl}/${getPath(this.connectId, this.peerConnectId, seqNum)}`;
-      fetch(url, {
-        method: 'POST',
-        body: JSON.stringify(drawAction),
+      // Enrol the draw action
+      sendDrawActions.push(drawAction);
+
+      sendSeqCtx.run(async () => {
+        // Skip if actions is empty
+        if (sendDrawActions.length === 0) {
+          return;
+        }
+
+        // Send the draw action to the peer
+        const url = `${this.serverUrl}/${getPath(this.connectId, this.peerConnectId, seqNum)}`;
+        const body = JSON.stringify(sendDrawActions);
+        // Clear the actions
+        // (from: https://qiita.com/tohashi/items/058edeaffd716c7234db)
+        sendDrawActions.splice(0, sendDrawActions.length);
+        await fetch(url, {
+          method: 'POST',
+          body,
+        });
+        seqNum++;
       });
-      seqNum++;
 
       startX = endX;
       startY = endY;
@@ -156,11 +173,13 @@ export default class PipingDraw extends Vue {
   private async connect() {
     console.log('connect called');
 
-    const receivePromiseLimiter = new PromiseLimiter(3);
+    // const receivePromiseLimiter = new PromiseLimiter(3);
+    const recieveSeqCtx = new PromiseSequentialContext();
 
-    for (let seqNum = 1; ; seqNum++) {
+
+    for (let seqNum = 1; ;) {
       const url = `${this.serverUrl}/${getPath(this.peerConnectId, this.connectId, seqNum)}`;
-      await receivePromiseLimiter.run(async () => {
+      await recieveSeqCtx.run(async () => {
         if (this.canvasContext === undefined) {
           console.error('Canvas context is not defined');
           return;
@@ -168,11 +187,15 @@ export default class PipingDraw extends Vue {
         try {
           const res = await fetch(url);
           // TODO: Don't use any
-          const drawAction: any = await res.json();
-          // Handle the draw action
-          drawActionHandler(this.canvasContext, drawAction);
-        } catch {
-          seqNum--;
+          const drawActions: any = await res.json();
+          // Handle all actions
+          for (const drawAction of drawActions) {
+            // Handle the draw action
+            drawActionHandler(this.canvasContext, drawAction);
+          }
+          seqNum++;
+        } catch (err) {
+          console.error(`Error in fetch GET`, err);
         }
       });
     }
