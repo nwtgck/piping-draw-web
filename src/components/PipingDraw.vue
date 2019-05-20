@@ -400,6 +400,9 @@ export default class PipingDraw extends Vue {
     // Key exchange
     this.commonKey = await this.keyExchange();
 
+    // Set initial pen color by comparing ID
+    this.penColor = this.colors[this.connectId < this.peerConnectId ? 0 : 1];
+
     const recieveSeqCtx = new PromiseSequentialContext();
 
     for (let seqNum = 1; ;) {
