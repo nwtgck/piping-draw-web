@@ -14,6 +14,7 @@
 /* tslint:disable:no-console */
 /* tslint:disable:interface-over-type-literal */
 import { Component, Prop, Vue } from 'vue-property-decorator';
+import {PromiseLimiter} from 'promise-limiter';
 
 type StrokeDrawAction = {
   kind: 'stroke',
@@ -66,7 +67,7 @@ function getRandomId(len: number): string {
 @Component
 export default class PipingDraw extends Vue {
   // TODO: Hard code
-  private serverUrl: string = 'http://localhost:8080';
+  private serverUrl: string = 'https://ppng.ml';
   private connectId: string = getRandomId(3);
   private peerConnectId: string = '';
   private canvasContext?: CanvasRenderingContext2D;
@@ -153,23 +154,27 @@ export default class PipingDraw extends Vue {
   }
 
   private async connect() {
-    if (this.canvasContext === undefined) {
-      console.error('Canvas context is not defined');
-      return;
-    }
-
     console.log('connect called');
+
+    const receivePromiseLimiter = new PromiseLimiter(3);
+
     for (let seqNum = 1; ; seqNum++) {
       const url = `${this.serverUrl}/${getPath(this.peerConnectId, this.connectId, seqNum)}`;
-      try {
-        const res = await fetch(url);
-        // TODO: Don't use any
-        const drawAction: any = await res.json();
-        // Handle the draw action
-        drawActionHandler(this.canvasContext, drawAction);
-      } catch {
-        seqNum--;
-      }
+      await receivePromiseLimiter.run(async () => {
+        if (this.canvasContext === undefined) {
+          console.error('Canvas context is not defined');
+          return;
+        }
+        try {
+          const res = await fetch(url);
+          // TODO: Don't use any
+          const drawAction: any = await res.json();
+          // Handle the draw action
+          drawActionHandler(this.canvasContext, drawAction);
+        } catch {
+          seqNum--;
+        }
+      });
     }
   }
 }
