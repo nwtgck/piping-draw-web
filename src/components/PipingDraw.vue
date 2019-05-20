@@ -1,5 +1,9 @@
 <template>
   <div>
+    Server URL: <input type="text" v-model="serverUrl"><br>
+    Your ID: <input type="text" v-model="connectId"><br>
+    Peer ID: <input type="text" v-model="peerConnectId"><br>
+    <button v-on:click="connect()">Connect</button><br>
     <canvas ref="canvas" width='700' height='500'>
       Canvas is not supported on this browser.
     </canvas>
@@ -40,8 +44,34 @@ function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAc
   }
 }
 
+function getPath(toId: string, fromId: string, seqNum: number): string {
+  // TODO: Use SHA256 for security
+  return `${toId}-to-${fromId}/${seqNum}`;
+}
+
+/**
+ * Get random ID
+ * @param len
+ */
+function getRandomId(len: number): string {
+  // NOTE: some similar shaped alphabets are not used
+  const alphas  = [
+    'a', 'b', 'c', 'd', 'e', 'f', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+  ];
+  const chars   = [...alphas];
+  const randomArr = window.crypto.getRandomValues(new Uint32Array(len));
+  return Array.from(randomArr).map((n) => chars[n % chars.length]).join('');
+}
+
 @Component
 export default class PipingDraw extends Vue {
+  // TODO: Hard code
+  private serverUrl: string = 'http://localhost:8080';
+  private connectId: string = getRandomId(3);
+  private peerConnectId: string = '';
+  private canvasContext?: CanvasRenderingContext2D;
+
+
   public mounted() {
     const canvas: HTMLCanvasElement = this.$refs.canvas as HTMLCanvasElement;
     if (!canvas || !canvas.getContext) {
@@ -53,11 +83,13 @@ export default class PipingDraw extends Vue {
       return;
     }
 
+    this.canvasContext = context;
     const radius = 5;
     context.strokeStyle = '#326bcd';
     context.lineJoin = 'round';
     context.lineWidth = radius;
 
+    let seqNum: number = 1;
     let startX: number;
     let startY: number;
     let isDrawing = false;
@@ -93,6 +125,14 @@ export default class PipingDraw extends Vue {
       // Handle the draw action
       drawActionHandler(context, drawAction);
 
+      // Send the draw action to the peer
+      const url = `${this.serverUrl}/${getPath(this.connectId, this.peerConnectId, seqNum)}`;
+      fetch(url, {
+        method: 'POST',
+        body: JSON.stringify(drawAction),
+      });
+      seqNum++;
+
       startX = endX;
       startY = endY;
       e.preventDefault();
@@ -110,6 +150,27 @@ export default class PipingDraw extends Vue {
     canvas.addEventListener('mouseup', endHandler);
     canvas.addEventListener('touchend', endHandler);
     canvas.addEventListener('mouseleave', endHandler);
+  }
+
+  private async connect() {
+    if (this.canvasContext === undefined) {
+      console.error('Canvas context is not defined');
+      return;
+    }
+
+    console.log('connect called');
+    for (let seqNum = 1; ; seqNum++) {
+      const url = `${this.serverUrl}/${getPath(this.peerConnectId, this.connectId, seqNum)}`;
+      try {
+        const res = await fetch(url);
+        // TODO: Don't use any
+        const drawAction: any = await res.json();
+        // Handle the draw action
+        drawActionHandler(this.canvasContext, drawAction);
+      } catch {
+        seqNum--;
+      }
+    }
   }
 }
 </script>
