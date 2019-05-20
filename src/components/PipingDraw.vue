@@ -15,16 +15,19 @@
 /* tslint:disable:interface-over-type-literal */
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import {PromiseSequentialContext} from '@/promise-sequential-context';
+import {nul, bool, num, str, literal, opt, arr, tuple, obj, union, TsType, validatingParse} from 'ts-json-validator';
 
-type StrokeDrawAction = {
-  kind: 'stroke',
-  startX: number,
-  startY: number,
-  endX: number,
-  endY: number,
-};
+const strokeDrawActionFormat = obj({
+  kind: literal('stroke' as const),
+  startX: num,
+  startY: num,
+  endX: num,
+  endY: num,
+});
+type StrokeDrawAction = TsType<typeof strokeDrawActionFormat>;
 
-type DrawAction = StrokeDrawAction;
+const drawActionFormat = strokeDrawActionFormat;
+type DrawAction = TsType<typeof drawActionFormat>;
 
 function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAction) {
   switch (drawAction.kind) {
@@ -176,7 +179,6 @@ export default class PipingDraw extends Vue {
     // const receivePromiseLimiter = new PromiseLimiter(3);
     const recieveSeqCtx = new PromiseSequentialContext();
 
-
     for (let seqNum = 1; ;) {
       const url = `${this.serverUrl}/${getPath(this.peerConnectId, this.connectId, seqNum)}`;
       await recieveSeqCtx.run(async () => {
@@ -186,8 +188,15 @@ export default class PipingDraw extends Vue {
         }
         try {
           const res = await fetch(url);
-          // TODO: Don't use any
-          const drawActions: any = await res.json();
+          // Parse the response as draw actions
+          const drawActions: DrawAction[] | undefined = validatingParse(
+            arr(drawActionFormat),
+            await res.text(),
+          );
+          if (drawActions === undefined) {
+            console.error('Response is not draw action array');
+            return;
+          }
           // Handle all actions
           for (const drawAction of drawActions) {
             // Handle the draw action
