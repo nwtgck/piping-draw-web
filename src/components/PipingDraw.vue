@@ -8,7 +8,37 @@
 
 <script lang="ts">
 /* tslint:disable:no-console */
+/* tslint:disable:interface-over-type-literal */
 import { Component, Prop, Vue } from 'vue-property-decorator';
+
+type StrokeDrawAction = {
+  kind: 'stroke',
+  startX: number,
+  startY: number,
+  endX: number,
+  endY: number,
+};
+
+type DrawAction = StrokeDrawAction;
+
+function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAction) {
+  switch (drawAction.kind) {
+    case 'stroke':
+      const {
+        startX,
+        startY,
+        endX,
+        endY,
+      } = drawAction;
+      context.beginPath();
+      context.moveTo(startX, startY);
+      context.lineTo(endX, endY);
+      context.stroke();
+      break;
+    default:
+      console.log(`Unexpected action: ${JSON.stringify(drawAction)}`);
+  }
+}
 
 @Component
 export default class PipingDraw extends Vue {
@@ -49,14 +79,22 @@ export default class PipingDraw extends Vue {
     const moveHandler = (e: MouseEvent | HTMLElementEventMap['touchmove']) => {
       if (!isDrawing) { return; }
       // TODO: Not safe casting (e.originalEvent.touches[0].pageX can be useful)
-      const x = getX(e as MouseEvent);
-      const y = getY(e as MouseEvent);
-      context.beginPath();
-      context.moveTo(startX, startY);
-      context.lineTo(x, y);
-      context.stroke();
-      startX = x;
-      startY = y;
+      const endX = getX(e as MouseEvent);
+      const endY = getY(e as MouseEvent);
+
+      // Create a draw action
+      const drawAction: StrokeDrawAction = {
+        kind: 'stroke',
+        startX,
+        startY,
+        endX,
+        endY,
+      };
+      // Handle the draw action
+      drawActionHandler(context, drawAction);
+
+      startX = endX;
+      startY = endY;
       e.preventDefault();
     };
     const endHandler = () => {
