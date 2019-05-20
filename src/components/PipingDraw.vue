@@ -16,6 +16,7 @@
 import { Component, Prop, Vue } from 'vue-property-decorator';
 import {PromiseSequentialContext} from '@/promise-sequential-context';
 import {nul, bool, num, str, literal, opt, arr, tuple, obj, union, TsType, validatingParse} from 'ts-json-validator';
+import {getBodyBytesFromResponse} from '@/utils';
 
 const strokeDrawActionFormat = obj({
   kind: literal('stroke' as const),
@@ -48,6 +49,44 @@ function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAc
   }
 }
 
+const rsaOtherPrimesInfoFormat = obj({
+  d: opt(str),
+  r: opt(str),
+  t: opt(str),
+});
+
+const jsonWebKeyFormat = obj({
+  alg: opt(str),
+  crv: opt(str),
+  d: opt(str),
+  dp: opt(str),
+  dq: opt(str),
+  e: opt(str),
+  ext: opt(bool),
+  k: opt(str),
+  key_ops: opt(arr(str)),
+  kty: opt(str),
+  n: opt(str),
+  oth: opt(arr(rsaOtherPrimesInfoFormat)),
+  p: opt(str),
+  q: opt(str),
+  qi: opt(str),
+  use: opt(str),
+  x: opt(str),
+  y: opt(str),
+});
+
+const keyExchangeParcelFormat = obj({
+  kind: literal('key_exchange' as const),
+  content: obj({
+    // Public key of ECDH
+    ecdhPublicJwk: jsonWebKeyFormat,
+  }),
+});
+
+type KeyExchangeParcel = TsType<typeof keyExchangeParcelFormat>;
+
+
 function getPath(toId: string, fromId: string, seqNum: number): string {
   // TODO: Use SHA256 for security
   return `${toId}-to-${fromId}/${seqNum}`;
@@ -69,12 +108,22 @@ function getRandomId(len: number): string {
 
 @Component
 export default class PipingDraw extends Vue {
+  // Initialization vector size
+  private readonly aesGcmIvLength: number = 12;
+
   // TODO: Hard code
   private serverUrl: string = 'https://ppng.ml';
   private connectId: string = getRandomId(3);
   private peerConnectId: string = '';
   private canvasContext?: CanvasRenderingContext2D;
 
+  private ecdhKeyPairPromise: PromiseLike<CryptoKeyPair> = window.crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256'},
+    false,
+    ['deriveKey', 'deriveBits'],
+  );
+
+  private commonKey?: CryptoKey;
 
   public mounted() {
     const canvas: HTMLCanvasElement = this.$refs.canvas as HTMLCanvasElement;
@@ -143,13 +192,27 @@ export default class PipingDraw extends Vue {
 
         // Send the draw action to the peer
         const url = `${this.serverUrl}/${getPath(this.connectId, this.peerConnectId, seqNum)}`;
-        const body = JSON.stringify(sendDrawActions);
+        if (this.commonKey === undefined) {
+          console.error('encrypt key is not defined');
+          return;
+        }
+        // Get JSON of draw action
+        const drawActionsJson: string = JSON.stringify(sendDrawActions);
         // Clear the actions
         // (from: https://qiita.com/tohashi/items/058edeaffd716c7234db)
         sendDrawActions.splice(0, sendDrawActions.length);
+        // Create a IV
+        const iv = crypto.getRandomValues(new Uint8Array(this.aesGcmIvLength));
+        // Encrypt
+        const encrypted = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv, tagLength: 128 },
+          this.commonKey,
+          new TextEncoder().encode(drawActionsJson),
+        );
+        // Send encrypted actions
         await fetch(url, {
           method: 'POST',
-          body,
+          body: new Blob([iv, encrypted]),
         });
         seqNum++;
       });
@@ -173,10 +236,65 @@ export default class PipingDraw extends Vue {
     canvas.addEventListener('mouseleave', endHandler);
   }
 
+  /**
+   * Exchange key by ECDH
+   */
+  private async keyExchange(): Promise<CryptoKey | undefined> {
+    // Get public JWK of ECDH as JSON
+    const ecdhPublicJwk: JsonWebKey = await crypto.subtle.exportKey(
+      'jwk',
+      (await this.ecdhKeyPairPromise).publicKey,
+    );
+    const keyExchangeParcel: KeyExchangeParcel = {
+      kind: 'key_exchange',
+      content: {
+        ecdhPublicJwk,
+      },
+    };
+    // Send the public key
+    // NOTE: sequence number 0 is used for key-exchange.
+    // NOTE: Don't use `await`
+    fetch(`${this.serverUrl}/${getPath(this.connectId, this.peerConnectId, 0)}`, {
+      method: 'POST',
+      body: JSON.stringify(keyExchangeParcel),
+    });
+    // Get peer's public ECDH key
+    const res = await fetch(`${this.serverUrl}/${getPath(this.peerConnectId, this.connectId, 0)}`);
+    // Parse the response as key exchange parcel
+    const peerKeyExchangeParcel: KeyExchangeParcel | undefined = validatingParse(
+      keyExchangeParcelFormat,
+      await res.text(),
+    );
+    if (peerKeyExchangeParcel === undefined) {
+      console.error('Parse error in peerKeyExchangeParcel');
+      return undefined;
+    }
+    // Get peer's public key for encryption
+    const peerCommonPublicKey: CryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      peerKeyExchangeParcel.content.ecdhPublicJwk,
+      {name: 'ECDH', namedCurve: 'P-256'},
+      false,
+      [],
+    );
+    // Generate common key by peer's public key
+    const commonKey: CryptoKey = await crypto.subtle.deriveKey(
+      { name: 'ECDH', public: peerCommonPublicKey },
+      (await this.ecdhKeyPairPromise).privateKey,
+      {name: 'AES-GCM', length: 128},
+      true,
+      ['encrypt', 'decrypt'],
+    );
+
+    return commonKey;
+  }
+
   private async connect() {
     console.log('connect called');
 
-    // const receivePromiseLimiter = new PromiseLimiter(3);
+    // Key exchange
+    this.commonKey = await this.keyExchange();
+
     const recieveSeqCtx = new PromiseSequentialContext();
 
     for (let seqNum = 1; ;) {
@@ -186,12 +304,27 @@ export default class PipingDraw extends Vue {
           console.error('Canvas context is not defined');
           return;
         }
+        if (this.commonKey === undefined) {
+          console.error('commonKey key is not defined');
+          return;
+        }
         try {
           const res = await fetch(url);
+          // Get body
+          const body: Uint8Array = await getBodyBytesFromResponse(res);
+          // Split body into IV and encrypted draw actions
+          const iv = body.slice(0, this.aesGcmIvLength);
+          const encrypted = body.slice(this.aesGcmIvLength);
+          // Decrypt
+          const decrypted = await crypto.subtle.decrypt(
+            { name: 'AES-GCM', iv, tagLength: 128 },
+            this.commonKey,
+            encrypted,
+          );
           // Parse the response as draw actions
           const drawActions: DrawAction[] | undefined = validatingParse(
             arr(drawActionFormat),
-            await res.text(),
+            new TextDecoder().decode(decrypted),
           );
           if (drawActions === undefined) {
             console.error('Response is not draw action array');
