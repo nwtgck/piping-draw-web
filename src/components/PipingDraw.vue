@@ -4,6 +4,15 @@
     Your ID: <input type="text" v-model="connectId"><br>
     Peer ID: <input type="text" v-model="peerConnectId"><br>
     <button v-on:click="connect()">Connect</button><br>
+
+    <button v-on:click="drawingMode = 'pen'"
+            v-bind:disabled="drawingMode === 'pen'">
+      ️Pen
+    </button>
+    <button v-on:click="drawingMode = 'eraser'"
+            v-bind:disabled="drawingMode === 'eraser'">
+      Eraser
+    </button><br>
     <canvas ref="canvas" width='700' height='500'>
       Canvas is not supported on this browser.
     </canvas>
@@ -27,22 +36,55 @@ const strokeDrawActionFormat = obj({
 });
 type StrokeDrawAction = TsType<typeof strokeDrawActionFormat>;
 
-const drawActionFormat = strokeDrawActionFormat;
+const eraseDrawActionFormat = obj({
+  kind: literal('erase' as const),
+  startX: num,
+  startY: num,
+  endX: num,
+  endY: num,
+});
+type EraseDrawAction = TsType<typeof eraseDrawActionFormat>;
+
+const drawActionFormat = union(strokeDrawActionFormat, eraseDrawActionFormat);
 type DrawAction = TsType<typeof drawActionFormat>;
 
 function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAction) {
   switch (drawAction.kind) {
     case 'stroke':
-      const {
-        startX,
-        startY,
-        endX,
-        endY,
-      } = drawAction;
-      context.beginPath();
-      context.moveTo(startX, startY);
-      context.lineTo(endX, endY);
-      context.stroke();
+      {
+        const {
+          startX,
+          startY,
+          endX,
+          endY,
+        } = drawAction;
+        // (from: https://stackoverflow.com/a/25916334/2885946)
+        context.globalCompositeOperation = 'source-over';
+        // TODO: Hard code
+        context.lineWidth = 5;
+        context.beginPath();
+        context.moveTo(startX, startY);
+        context.lineTo(endX, endY);
+        context.stroke();
+      }
+      break;
+    case 'erase':
+      {
+        const {
+          startX,
+          startY,
+          endX,
+          endY,
+        } = drawAction;
+        // (from: https://stackoverflow.com/a/25916334/2885946)
+        context.globalCompositeOperation = 'destination-out';
+        // TODO: Hard code
+        context.lineWidth = 20;
+        context.beginPath();
+        context.moveTo(startX, startY);
+        context.lineTo(endX, endY);
+        context.stroke();
+      }
       break;
     default:
       console.log(`Unexpected action: ${JSON.stringify(drawAction)}`);
@@ -125,6 +167,8 @@ export default class PipingDraw extends Vue {
 
   private commonKey?: CryptoKey;
 
+  private drawingMode: 'pen' | 'eraser' = 'pen';
+
   public mounted() {
     const canvas: HTMLCanvasElement = this.$refs.canvas as HTMLCanvasElement;
     if (!canvas || !canvas.getContext) {
@@ -137,10 +181,8 @@ export default class PipingDraw extends Vue {
     }
 
     this.canvasContext = context;
-    const radius = 5;
     context.strokeStyle = '#326bcd';
     context.lineJoin = 'round';
-    context.lineWidth = radius;
 
     const sendSeqCtx = new PromiseSequentialContext();
     const sendDrawActions: DrawAction[] = [];
@@ -171,13 +213,29 @@ export default class PipingDraw extends Vue {
       const endY = getY(e as MouseEvent);
 
       // Create a draw action
-      const drawAction: StrokeDrawAction = {
-        kind: 'stroke',
-        startX,
-        startY,
-        endX,
-        endY,
-      };
+      const drawAction: DrawAction = (() => {
+        switch (this.drawingMode) {
+          case 'pen':
+            const stroke: StrokeDrawAction = {
+              kind: 'stroke',
+              startX,
+              startY,
+              endX,
+              endY,
+            };
+            return stroke;
+          case 'eraser':
+            const erase: EraseDrawAction = {
+              kind: 'erase',
+              startX,
+              startY,
+              endX,
+              endY,
+            };
+            return erase;
+        }
+      })();
+
       // Handle the draw action
       drawActionHandler(context, drawAction);
 
