@@ -27,6 +27,17 @@
                v-bind:disabled="drawingMode === 'eraser'">
           <v-icon>fas fa-eraser</v-icon>
         </v-btn>
+
+        <!-- Color selections -->
+        <v-btn v-for="(color, index) in colors"
+               :key="index"
+               v-on:click="penColor = color"
+               icon
+               v-bind:color="penColor === color ? '#ccc' : ''">
+          <v-icon v-bind:color="color">
+            fas fa-circle
+          </v-icon>
+        </v-btn>
       </v-flex>
     </v-layout>
 
@@ -46,6 +57,7 @@ import {getBodyBytesFromResponse} from '@/utils';
 
 const strokeDrawActionFormat = obj({
   kind: literal('stroke' as const),
+  color: str,
   startX: num,
   startY: num,
   endX: num,
@@ -70,11 +82,13 @@ function drawActionHandler(context: CanvasRenderingContext2D, drawAction: DrawAc
     case 'stroke':
       {
         const {
+          color,
           startX,
           startY,
           endX,
           endY,
         } = drawAction;
+        context.strokeStyle = color;
         // (from: https://stackoverflow.com/a/25916334/2885946)
         context.globalCompositeOperation = 'source-over';
         // TODO: Hard code
@@ -186,6 +200,19 @@ export default class PipingDraw extends Vue {
 
   private drawingMode: 'pen' | 'eraser' = 'pen';
 
+  private colors: ReadonlyArray<string> = [
+    '#326bcd',
+    '#ff3300',
+    '#ff6600',
+    '#ff6699',
+    '#9966ff',
+    '#00cc66',
+    '#f4f414',
+    '#464646'
+  ];
+
+  private penColor: string = this.colors[0];
+
   public mounted() {
     const canvas: HTMLCanvasElement = this.$refs.canvas as HTMLCanvasElement;
     if (!canvas || !canvas.getContext) {
@@ -198,7 +225,6 @@ export default class PipingDraw extends Vue {
     }
 
     this.canvasContext = context;
-    context.strokeStyle = '#326bcd';
     context.lineJoin = 'round';
 
     const sendSeqCtx = new PromiseSequentialContext();
@@ -235,6 +261,7 @@ export default class PipingDraw extends Vue {
           case 'pen':
             const stroke: StrokeDrawAction = {
               kind: 'stroke',
+              color: this.penColor,
               startX,
               startY,
               endX,
