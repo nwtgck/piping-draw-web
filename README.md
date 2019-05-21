@@ -14,3 +14,4 @@ The main purpose of Piping Draw allows users draw/write pictures/letters safely 
 * Static hosting
 * Progressive Web App (PWA)
 * Accountless
+* Touch devices supported such as smartphones and tablets
