@@ -1,6 +1,6 @@
 <template>
   <div>
-    <v-layout>
+    <v-layout v-if="!isKeyExchanged()">
       <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
         <v-card style="padding: 1em; margin: 1em;">
           <v-form v-model="isValidForm">
@@ -17,7 +17,7 @@
             <v-btn v-on:click="connect()"
                    color="primary"
                    block
-                   v-bind:disabled="!isValidForm">
+                   v-bind:disabled="!isValidForm || isConnecting">
               Connect
             </v-btn>
           </v-form>
@@ -25,35 +25,37 @@
       </v-flex>
     </v-layout>
 
-    <v-layout>
-      <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
-        <v-btn v-on:click="drawingMode = 'pen'"
-               icon
-               v-bind:color="drawingMode === 'pen' ? '#ccc' : ''">
-          <v-icon color="#555">fas fa-paint-brush</v-icon>
-        </v-btn>
-        <v-btn v-on:click="drawingMode = 'eraser'"
-               icon
-               v-bind:color="drawingMode === 'eraser' ? '#ccc' : ''">
-          <v-icon color="#555">fas fa-eraser</v-icon>
-        </v-btn>
+    <div v-show="isKeyExchanged()">
+      <v-layout>
+        <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
+          <v-btn v-on:click="drawingMode = 'pen'"
+                 icon
+                 v-bind:color="drawingMode === 'pen' ? '#ccc' : ''">
+            <v-icon color="#555">fas fa-paint-brush</v-icon>
+          </v-btn>
+          <v-btn v-on:click="drawingMode = 'eraser'"
+                 icon
+                 v-bind:color="drawingMode === 'eraser' ? '#ccc' : ''">
+            <v-icon color="#555">fas fa-eraser</v-icon>
+          </v-btn>
 
-        <!-- Color selections -->
-        <v-btn v-for="(color, index) in colors"
-               :key="index"
-               v-on:click="penColor = color"
-               icon
-               v-bind:color="penColor === color ? '#ccc' : ''">
-          <v-icon v-bind:color="color">
-            fas fa-circle
-          </v-icon>
-        </v-btn>
-      </v-flex>
-    </v-layout>
+          <!-- Color selections -->
+          <v-btn v-for="(color, index) in colors"
+                 :key="index"
+                 v-on:click="penColor = color"
+                 icon
+                 v-bind:color="penColor === color ? '#ccc' : ''">
+            <v-icon v-bind:color="color">
+              fas fa-circle
+            </v-icon>
+          </v-btn>
+        </v-flex>
+      </v-layout>
 
-    <canvas ref="canvas" width='700' height='500'>
-      Canvas is not supported on this browser.
-    </canvas>
+      <canvas ref="canvas" width='700' height='500'>
+        Canvas is not supported on this browser.
+      </canvas>
+    </div>
   </div>
 </template>
 
@@ -223,6 +225,8 @@ export default class PipingDraw extends Vue {
   ];
 
   private penColor: string = this.colors[0];
+
+  private isConnecting: boolean = false;
 
   public mounted() {
     const canvas: HTMLCanvasElement = this.$refs.canvas as HTMLCanvasElement;
@@ -402,11 +406,17 @@ export default class PipingDraw extends Vue {
     return commonKey;
   }
 
+  private isKeyExchanged(): boolean {
+    return this.commonKey !== undefined;
+  }
+
   private async connect() {
     console.log('connect called');
+    this.isConnecting = true;
 
     // Key exchange
     this.commonKey = await this.keyExchange();
+    this.$forceUpdate();
 
     // Set initial pen color by comparing ID
     this.penColor = this.colors[this.connectId < this.peerConnectId ? 0 : 1];
