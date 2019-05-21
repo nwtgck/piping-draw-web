@@ -1,6 +1,6 @@
 {
   "name": "piping-draw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -10,11 +10,17 @@
   "dependencies": {
     "core-js": "^2.6.5",
     "register-service-worker": "^1.6.2",
+    "ts-json-validator": "git+https://github.com/nwtgck/ts-json-validator.git#v0.1.2",
     "vue": "^2.6.10",
     "vue-class-component": "^7.0.2",
-    "vue-property-decorator": "^8.1.0"
+    "vue-property-decorator": "^8.1.0",
+    "vuetify": "^1.5.14"
   },
   "devDependencies": {
+    "@fortawesome/fontawesome": "^1.1.8",
+    "@fortawesome/fontawesome-free-brands": "^5.0.13",
+    "@fortawesome/fontawesome-free-regular": "^5.0.13",
+    "@fortawesome/fontawesome-free-solid": "^5.0.13",
     "@vue/cli-plugin-babel": "^3.7.0",
     "@vue/cli-plugin-pwa": "^3.7.0",
     "@vue/cli-plugin-typescript": "^3.7.0",
