@@ -3,17 +3,24 @@
     <v-layout>
       <v-flex xs12 sm8 offset-sm2 offset-md3 md6>
         <v-card style="padding: 1em; margin: 1em;">
-          <v-text-field label="Server URL"
-                        v-model="serverUrl" />
-          <v-text-field label="Your ID"
-                        v-model="connectId" />
-          <v-text-field label="Peer ID"
-                        v-model="peerConnectId"
-                        placeholder="e.g. bma" />
-          <v-btn v-on:click="connect()"
-                 color="primary"
-                 block>Connect
-          </v-btn>
+          <v-form v-model="isValidForm">
+            <v-text-field label="Server URL"
+                          v-model="serverUrl"
+                          v-bind:rules="[(v) => !!v || 'Server URL is required']" />
+            <v-text-field label="Your ID"
+                          v-model="connectId"
+                          v-bind:rules="[(v) => !!v || 'Your ID is required']" />
+            <v-text-field label="Peer ID"
+                          v-model="peerConnectId"
+                          placeholder="e.g. bma"
+                          v-bind:rules="[(v) => !!v || 'Peer ID is required']" />
+            <v-btn v-on:click="connect()"
+                   color="primary"
+                   block
+                   v-bind:disabled="!isValidForm">
+              Connect
+            </v-btn>
+          </v-form>
         </v-card>
       </v-flex>
     </v-layout>
@@ -186,6 +193,7 @@ function getRandomId(len: number): string {
 export default class PipingDraw extends Vue {
   // Initialization vector size
   private readonly aesGcmIvLength: number = 12;
+  private isValidForm: boolean = false;
 
   // TODO: Hard code
   private serverUrl: string = 'https://ppng.ml';
