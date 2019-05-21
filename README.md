@@ -1,29 +1,16 @@
 # piping-draw
+[![Netlify Status](https://api.netlify.com/api/v1/badges/21ac1a3f-294d-4d99-bae1-d494e39a8156/deploy-status)](https://app.netlify.com/sites/piping-draw/deploys)
 
-## Project setup
-```
-npm install
-```
+End-to-End Encryption Share Drawing via [Piping Server](https://github.com/nwtgck/piping-server)
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+![Piping Draw Demo](doc_assets/piping-draw-demo.gif)
 
-### Compiles and minifies for production
-```
-npm run build
-```
+## Purpose & Features
+The main purpose of Piping Draw allows users draw/write pictures/letters safely via Piping Server. It has the following features for the purpose.
 
-### Run your tests
-```
-npm run test
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+* End-to-End Encryption by AES [GCM](https://en.wikipedia.org/wiki/Galois/Counter_Mode)
+* Key exchange by [ECDH](https://en.wikipedia.org/wiki/Elliptic-curve_Diffie%E2%80%93Hellman)
+* via [Piping Server](https://github.com/nwtgck/piping-server)
+* Static hosting
+* Progressive Web App (PWA)
+* Accountless
