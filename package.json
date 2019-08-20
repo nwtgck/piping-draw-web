@@ -14,7 +14,7 @@
     "vue": "^2.6.10",
     "vue-class-component": "^7.0.2",
     "vue-property-decorator": "^8.2.1",
-    "vuetify": "^2.0.7"
+    "vuetify": "^v2.0.8"
   },
   "devDependencies": {
     "@fortawesome/fontawesome": "^1.1.8",
