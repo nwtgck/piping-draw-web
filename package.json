@@ -22,7 +22,7 @@
     "@fortawesome/fontawesome-free-regular": "^5.0.13",
     "@fortawesome/fontawesome-free-solid": "^5.0.13",
     "@vue/cli-plugin-babel": "^4.0.4",
-    "@vue/cli-plugin-pwa": "^4.0.4",
+    "@vue/cli-plugin-pwa": "^4.5.2",
     "@vue/cli-plugin-typescript": "^4.0.4",
     "@vue/cli-service": "^4.0.4",
     "sass": "^1.23.0",
