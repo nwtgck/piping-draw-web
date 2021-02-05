@@ -30,6 +30,6 @@
     "typescript": "^3.6.4",
     "vue-cli-plugin-vuetify": "^1.1.0",
     "vue-template-compiler": "^2.6.10",
-    "vuetify-loader": "^1.3.0"
+    "vuetify-loader": "^1.7.2"
   }
 }
