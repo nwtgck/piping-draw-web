@@ -198,7 +198,7 @@ export default class PipingDraw extends Vue {
   private isValidForm: boolean = false;
 
   // TODO: Hard code
-  private serverUrl: string = 'https://ppng.ml';
+  private serverUrl: string = 'https://ppng.io';
   private connectId: string = getRandomId(3);
   private peerConnectId: string = '';
   private canvasContext?: CanvasRenderingContext2D;
